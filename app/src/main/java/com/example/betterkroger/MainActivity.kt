@@ -42,6 +42,8 @@ import com.example.betterkroger.models.ProductAisleLocation
 import com.example.betterkroger.models.ProductImage
 import com.example.betterkroger.models.ProductRes
 import com.example.betterkroger.models.ProductSize
+import com.example.betterkroger.models.ShoppingItem
+import com.example.betterkroger.models.ShoppingList
 import com.example.betterkroger.ui.theme.BetterKrogerTheme
 import com.google.gson.Gson
 import io.ktor.client.HttpClient
@@ -58,6 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        ensureListFileExists(this, fileName)
+
         enableEdgeToEdge()
         setContent {
             BetterKrogerTheme {
@@ -68,6 +72,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+fun ensureListFileExists(context: Context, fileName: String) {
+    val file = File(context.getFilesDir(), fileName)
+
+    if (!file.exists()) {
+        // TODO(map) Move gson to the top level and pass an instance around
+        val gson = Gson()
+        val shoppingList = ShoppingList(items = mutableListOf())
+        val jsonString = gson.toJson(shoppingList)
+
+        context.openFileOutput(fileName, Context.MODE_PRIVATE).use {
+            it.write(jsonString.toByteArray())
+        }
+
     }
 }
 
@@ -138,16 +158,21 @@ fun ViewList(modifier: Modifier = Modifier) {
 @Composable
 fun WriteFileContents(
     fileName: String,
-    productId: String,
-    productAisle: String,
+    shoppingItem: ShoppingItem,
 ) {
     val context = LocalContext.current
-    val fileContents = mapOf("product_id" to productId, "product_aisle" to productAisle)
-    val gson = Gson()
-    val jsonString = gson.toJson(fileContents)
 
     Button(onClick = {
-        context.openFileOutput(fileName, Context.MODE_APPEND).use {
+        val gson = Gson()
+
+        val shoppingListContents =
+            context.openFileInput(fileName).bufferedReader().use { it.readText() }
+        var shoppingList: ShoppingList =
+            gson.fromJson(shoppingListContents, ShoppingList::class.java)
+        shoppingList.items.add(shoppingItem)
+        val jsonString = gson.toJson(shoppingList)
+
+        context.openFileOutput(fileName, Context.MODE_PRIVATE).use {
             it.write(jsonString.toByteArray())
         }
     }) {
@@ -184,7 +209,8 @@ fun ProductSearch(modifier: Modifier = Modifier) {
     ) {
         productRes?.data?.forEach { product ->
             var thumbnailSize: ProductSize? = null
-            var productAisle: String = "No Aisle Found"
+            var productAisleNumber: String = "No Aisle Found"
+            var productAisleDescription: String = "No Aisle Description Found"
             for (productImage in product.images) {
                 if (productImage.perspective == "front") {
                     for (productSize in productImage.sizes) {
@@ -196,12 +222,15 @@ fun ProductSearch(modifier: Modifier = Modifier) {
                 }
             }
             if (product.aisleLocations.size > 0) {
-                productAisle = product.aisleLocations[0].description
+                productAisleNumber = product.aisleLocations[0].number
+                productAisleDescription = product.aisleLocations[0].description
             }
             if (thumbnailSize != null) {
                 ItemPreview(
                     productId = product.productId,
-                    productAisle = productAisle,
+                    productBrand = product.brand,
+                    productAisleNumber = productAisleNumber,
+                    productAisleDescription = productAisleDescription,
                     productUrl = thumbnailSize.url,
                     productDescription = product.description,
                     modifier = modifier,
@@ -214,15 +243,24 @@ fun ProductSearch(modifier: Modifier = Modifier) {
 @Composable
 fun ItemPreview(
     productId: String,
-    productAisle: String,
+    productBrand: String,
+    productAisleNumber: String,
+    productAisleDescription: String,
     productUrl: String,
     productDescription: String,
     modifier: Modifier = Modifier,
 ) {
+    var shoppingItem = ShoppingItem(
+        productId = productId,
+        brand = productBrand,
+        productDescription = productDescription,
+        aisleDescription = productAisleDescription,
+        aisleNumber = productAisleNumber,
+    )
     Card(modifier = modifier) {
         Row {
             Column {
-                WriteFileContents(fileName, productId, productAisle)
+                WriteFileContents(fileName, shoppingItem)
             }
             Column {
                 Text(
@@ -232,7 +270,7 @@ fun ItemPreview(
                             .padding(8.dp),
                 )
                 Text(
-                    text = productAisle,
+                    text = productAisleDescription,
                     modifier =
                         Modifier
                             .padding(8.dp),

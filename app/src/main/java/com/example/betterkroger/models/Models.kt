@@ -41,10 +41,11 @@ data class ProductRes(
 data class ShoppingItem(
     val productId: String,
     val brand: String,
-    val description: String,
-    val number: String,
+    val productDescription: String,
+    val aisleDescription: String,
+    val aisleNumber: String,
 )
 
 data class ShoppingList(
-    val items: List<ShoppingItem>,
+    var items: MutableList<ShoppingItem>,
 )

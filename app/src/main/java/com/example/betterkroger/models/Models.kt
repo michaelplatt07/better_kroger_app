@@ -35,7 +35,8 @@ data class Product(
 )
 
 data class ProductRes(
-    val	data: List<Product>,
+    val data: List<Product>? = null,
+    val error: String?,
 )
 
 data class ShoppingItem(
@@ -44,8 +45,14 @@ data class ShoppingItem(
     val productDescription: String,
     val aisleDescription: String,
     val aisleNumber: String,
+    var quantity: Int = 1,
+    var checked: Boolean = false,
 )
 
 data class ShoppingList(
     var items: MutableList<ShoppingItem>,
 )
+
+data class GroupedShoppingList(
+    var items: MutableMap<String, MutableList<ShoppingItem>>,
+) 

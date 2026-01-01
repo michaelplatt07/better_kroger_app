@@ -55,6 +55,7 @@ dependencies {
     implementation("io.ktor:ktor-client-android:$ktorVersion")
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
+    implementation("io.ktor:ktor-client-okhttp:${ktorVersion}")
     implementation("com.google.code.gson:gson:2.8.9")
     implementation("io.coil-kt.coil3:coil:$coilVersion")
     implementation("io.coil-kt.coil3:coil-compose:$coilVersion")

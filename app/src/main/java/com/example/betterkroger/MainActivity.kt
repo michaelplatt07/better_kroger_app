@@ -2,10 +2,12 @@ package com.example.betterkroger
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,43 +18,36 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
-import coil3.compose.rememberAsyncImagePainter
-import com.example.betterkroger.models.Product
-import com.example.betterkroger.models.ProductAisleLocation
-import com.example.betterkroger.models.ProductImage
 import com.example.betterkroger.models.ProductRes
 import com.example.betterkroger.models.ProductSize
 import com.example.betterkroger.models.ShoppingItem
 import com.example.betterkroger.models.ShoppingList
 import com.example.betterkroger.ui.theme.BetterKrogerTheme
+import com.example.betterkroger.viewmodels.ListViewModel
+import com.example.betterkroger.viewmodels.SearchViewModel
 import com.google.gson.Gson
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.launch
 import java.io.File
 
-private val client = HttpClient()
 private val fileName = "shopping_list.json"
 private val settingsFile = "settings.json"
 
@@ -114,6 +109,9 @@ fun BetterKrogerApp(modifier: Modifier = Modifier) {
         composable("search") {
             ProductSearch(
                 modifier = modifier,
+                onNavigateToHome = {
+                    navController.navigate("home")
+                },
             )
         }
     }
@@ -128,6 +126,7 @@ fun HomePage(
     Column(
         modifier =
             modifier
+                .padding(10.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
     ) {
@@ -145,16 +144,66 @@ fun HomePage(
 }
 
 @Composable
-fun ViewList(modifier: Modifier = Modifier) {
+fun ViewList(
+    modifier: Modifier = Modifier, listViewModel: ListViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    listViewModel.load(context)
+    val shoppingList = listViewModel.getGroupedShoppingList(context)
+    Log.d("ViewList", "TODO(map) REMOVE ME : $shoppingList")
     Column(
         modifier =
             modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
     ) {
+        Button(onClick = { listViewModel.clearChecked(context) }) {
+            Text(text = "Clear Checked")
+        }
+        shoppingList.items.forEach { item ->
+            ShoppingListItemView(modifier, aisleGrouping = item.key, item.value)
+        }
     }
 }
 
+@Composable
+fun ShoppingListItemView(
+    modifier: Modifier = Modifier,
+    aisleGrouping: String,
+    shoppingItems: MutableList<ShoppingItem>,
+    listViewModel: ListViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(color = Color(43, 125, 251))
+    ) {
+        Text(
+            text = aisleGrouping,
+            modifier = Modifier.padding(24.dp)
+        )
+    }
+    shoppingItems.forEach { shoppingItem ->
+        Column {
+            Checkbox(
+                shoppingItem.checked,
+                onCheckedChange = { listViewModel.updateCheckedStatus(context, shoppingItem, it) }
+            )
+            Text(
+                text = "${shoppingItem.quantity} - ${shoppingItem.productDescription}",
+                modifier =
+                    Modifier
+                        .padding(8.dp),
+            )
+        }
+    }
+
+
+}
+
+// TODO(map) Hoist to better place to write file
 @Composable
 fun WriteFileContents(
     fileName: String,
@@ -175,56 +224,81 @@ fun WriteFileContents(
         context.openFileOutput(fileName, Context.MODE_PRIVATE).use {
             it.write(jsonString.toByteArray())
         }
+        val productName = shoppingItem.productDescription
+        Toast.makeText(context, "$productName added.", Toast.LENGTH_LONG).show()
     }) {
         Text(text = "Add")
     }
 }
 
-@Composable
-fun ProductSearch(modifier: Modifier = Modifier) {
-    var text by remember { mutableStateOf("Loading...") }
-    var productRes by remember { mutableStateOf<ProductRes?>(null) }
-    LaunchedEffect(Unit) {
-        try {
-            val response: HttpResponse = client.get("http://10.0.2.2:8080/search?item=ground+pork")
 
-            if (response.status.value == 200) {
-                var response_body = response.bodyAsText()
-                val gson = Gson()
-                productRes = gson.fromJson(response_body, ProductRes::class.java)
-                // text = productRes?.data?.get(0).description
-            } else {
-                text = "Error: ${response.status}"
-            }
-        } catch (e: Exception) {
-            text = "Network error: ${e.message}"
-        }
-    }
+@Composable
+fun ProductSearch(
+    modifier: Modifier = Modifier,
+    onNavigateToHome: () -> Unit,
+    searchViewModel: SearchViewModel = viewModel()
+) {
+    var text by remember { mutableStateOf("") }
+    var productRes by remember { mutableStateOf<ProductRes?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-    ) {
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+
+        ) {
+        TextField(
+            value = text,
+            onValueChange = { newText ->
+                text = newText
+            },
+            placeholder = { Text(text = "Type Product Name") },
+        )
+        Button(
+            onClick = {
+                onNavigateToHome()
+            }
+        ) {
+            Text(
+                text = "Home"
+            )
+        }
+        Button(
+            onClick = {
+                scope.launch {
+                    productRes = searchViewModel.searchForProduct(text)
+                }
+            }
+        ) {
+            Text(
+                text = "Search"
+            )
+        }
         productRes?.data?.forEach { product ->
             var thumbnailSize: ProductSize? = null
             var productAisleNumber: String = "No Aisle Found"
             var productAisleDescription: String = "No Aisle Description Found"
             for (productImage in product.images) {
                 if (productImage.perspective == "front") {
-                    for (productSize in productImage.sizes) {
-                        if (productSize.size == "thumbnail") {
-                            thumbnailSize = productSize
-                            break
-                        }
+                    // TODO(map) What should I do to ensure that we always get an image? And if no image is present, 
+                    // should we ensure that there is a default?
+                    if (productImage.sizes.size >= 1) {
+                        thumbnailSize = productImage.sizes.get(0)
                     }
+                    // for (productSize in productImage.sizes) {
+                    //     if (productSize.size == "thumbnail") {
+                    //         thumbnailSize = productSize
+                    //         break
+                    //     }
+                    // }
                 }
             }
             if (product.aisleLocations.size > 0) {
                 productAisleNumber = product.aisleLocations[0].number
                 productAisleDescription = product.aisleLocations[0].description
             }
+            // TODO(map) Figure out how to manage quantity here.
             if (thumbnailSize != null) {
                 ItemPreview(
                     productId = product.productId,

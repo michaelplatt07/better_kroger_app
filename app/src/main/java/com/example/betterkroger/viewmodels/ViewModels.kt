@@ -3,7 +3,10 @@ package com.example.betterkroger.viewmodels
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.betterkroger.models.GroupedShoppingList
@@ -56,8 +59,9 @@ class ListViewModel(
     private var saveJob: Job? = null
 
     var shoppingItems = mutableStateListOf<ShoppingItem>()
+    val groupedShoppingItems by derivedStateOf { shoppingItems.groupBy { it.aisleDescription } }
 
-    fun load(context: Context) {
+    fun loadShoppingItems(context: Context) {
         Log.d("ListViewModel", "Loading shopping items...")
         if (shoppingItems.isNotEmpty()) {
             Log.d("ListViewModel", "Items aready loaded...")
@@ -72,24 +76,8 @@ class ListViewModel(
         shoppingItems.addAll(shoppingList.items)
     }
 
-    fun getGroupedShoppingList(context: Context): GroupedShoppingList {
-        // val gson = Gson()
-        // val shoppingListContents =
-        //     context.openFileInput(fileName).bufferedReader().use { it.readText() }
-        // var shoppingList: ShoppingList =
-        //     gson.fromJson(shoppingListContents, ShoppingList::class.java)
-        var groupedShoppingList: GroupedShoppingList = GroupedShoppingList(items = mutableMapOf())
-        shoppingItems.forEach { item ->
-            if (item.aisleDescription in groupedShoppingList.items) {
-                groupedShoppingList.items[item.aisleDescription]?.add(item)
-            } else {
-                groupedShoppingList.items[item.aisleDescription] = mutableListOf(item)
-            }
-        }
-        return groupedShoppingList
-    }
-
     fun clearChecked(context: Context) {
+        Log.d("ListViewModel", "Clearing checked items")
         shoppingItems.removeAll { it.checked == true }
         scheduleSave(context, shoppingItems)
     }

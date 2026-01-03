@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -148,9 +149,11 @@ fun ViewList(
     modifier: Modifier = Modifier, listViewModel: ListViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    listViewModel.load(context)
-    val shoppingList = listViewModel.getGroupedShoppingList(context)
-    Log.d("ViewList", "TODO(map) REMOVE ME : $shoppingList")
+
+    LaunchedEffect(Unit) {
+        listViewModel.loadShoppingItems(context)
+    }
+
     Column(
         modifier =
             modifier
@@ -160,8 +163,8 @@ fun ViewList(
         Button(onClick = { listViewModel.clearChecked(context) }) {
             Text(text = "Clear Checked")
         }
-        shoppingList.items.forEach { item ->
-            ShoppingListItemView(modifier, aisleGrouping = item.key, item.value)
+        listViewModel.groupedShoppingItems.forEach { (aisleGroup, items) ->
+            ShoppingListItemView(modifier, aisleGrouping = aisleGroup, items)
         }
     }
 }
@@ -170,7 +173,7 @@ fun ViewList(
 fun ShoppingListItemView(
     modifier: Modifier = Modifier,
     aisleGrouping: String,
-    shoppingItems: MutableList<ShoppingItem>,
+    shoppingItems: List<ShoppingItem>,
     listViewModel: ListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -186,21 +189,38 @@ fun ShoppingListItemView(
         )
     }
     shoppingItems.forEach { shoppingItem ->
-        Column {
-            Checkbox(
-                shoppingItem.checked,
-                onCheckedChange = { listViewModel.updateCheckedStatus(context, shoppingItem, it) }
-            )
-            Text(
-                text = "${shoppingItem.quantity} - ${shoppingItem.productDescription}",
-                modifier =
-                    Modifier
-                        .padding(8.dp),
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (shoppingItem.checked) Modifier.background(
+                        color = Color(
+                            120,
+                            117,
+                            117
+                        )
+                    ) else Modifier.background(color = Color(209, 204, 203))
+                )
+        ) {
+            Row {
+                Checkbox(
+                    shoppingItem.checked,
+                    onCheckedChange = {
+                        listViewModel.updateCheckedStatus(
+                            context,
+                            shoppingItem,
+                            it
+                        )
+                    }
+                )
+                Text(
+                    modifier = Modifier.padding(8.dp),
+                    color = Color(0, 0, 0),
+                    text = "${shoppingItem.quantity} - ${shoppingItem.productDescription}",
+                )
+            }
         }
     }
-
-
 }
 
 // TODO(map) Hoist to better place to write file
@@ -225,7 +245,8 @@ fun WriteFileContents(
             it.write(jsonString.toByteArray())
         }
         val productName = shoppingItem.productDescription
-        Toast.makeText(context, "$productName added.", Toast.LENGTH_LONG).show()
+        // TODO(map) There might be a better way to do this with alert
+        Toast.makeText(context, "$productName added.", Toast.LENGTH_SHORT).show()
     }) {
         Text(text = "Add")
     }

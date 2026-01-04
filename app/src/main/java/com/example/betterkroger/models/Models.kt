@@ -1,5 +1,13 @@
 package com.example.betterkroger.models
 
+import androidx.datastore.preferences.core.stringPreferencesKey
+
+
+// Settings
+object AppSettings {
+    val API_URL = stringPreferencesKey("api_url")
+}
+
 // Search results models
 data class ProductAisleLocation(
     val bayNumber: String,

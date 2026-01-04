@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,7 @@ import com.example.betterkroger.models.ProductSize
 import com.example.betterkroger.models.ShoppingItem
 import com.example.betterkroger.models.ShoppingList
 import com.example.betterkroger.ui.theme.BetterKrogerTheme
+import com.example.betterkroger.viewmodels.AppSettingsViewModel
 import com.example.betterkroger.viewmodels.ListViewModel
 import com.example.betterkroger.viewmodels.SearchViewModel
 import com.google.gson.Gson
@@ -107,6 +109,9 @@ fun BetterKrogerApp(modifier: Modifier = Modifier) {
                 onNavigateToViewList = {
                     navController.navigate("viewList")
                 },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
+                }
             )
         }
         composable("viewList") {
@@ -122,6 +127,14 @@ fun BetterKrogerApp(modifier: Modifier = Modifier) {
                 },
             )
         }
+        composable("settings") {
+            SettingsView(
+                modifier = modifier,
+                onNavigateToHome = {
+                    navController.navigate("home")
+                },
+            )
+        }
     }
 }
 
@@ -130,6 +143,7 @@ fun HomePage(
     modifier: Modifier = Modifier,
     onNavigateToViewList: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
     Column(
         modifier =
@@ -148,8 +162,52 @@ fun HomePage(
         }) {
             Text(text = "Search")
         }
+        Button(onClick = {
+            onNavigateToSettings()
+        }) {
+            Text(text = "Settings")
+        }
     }
 }
+
+@Composable
+fun SettingsView(
+    modifier: Modifier = Modifier,
+    appSettingsViewModel: AppSettingsViewModel = viewModel(),
+    onNavigateToHome: () -> Unit,
+) {
+    val apiUrl by appSettingsViewModel.apiUrl.collectAsState(initial = "")
+
+    Column(
+        modifier =
+            modifier
+                .padding(10.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+    ) {
+        Row {
+            Button(
+                onClick = {
+                    onNavigateToHome()
+                }
+            ) {
+                Text(
+                    text = "Home"
+                )
+            }
+        }
+        Row {
+        TextField(
+            value = apiUrl,
+            onValueChange = { newUrl ->
+                appSettingsViewModel.updateApiUrl(newUrl)
+            },
+            singleLine = true,
+        )
+    }
+    } 
+}
+
 
 @Composable
 fun ViewList(
@@ -183,7 +241,6 @@ fun ShoppingListItemView(
     shoppingItems: List<ShoppingItem>,
     listViewModel: ListViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     Column(
         modifier =
             Modifier
@@ -253,11 +310,14 @@ fun ProductSearch(
     modifier: Modifier = Modifier,
     onNavigateToHome: () -> Unit,
     searchViewModel: SearchViewModel = viewModel(),
-    listViewModel: ListViewModel = viewModel()
+    listViewModel: ListViewModel = viewModel(),
+    appSettingsViewModel: AppSettingsViewModel = viewModel()
 ) {
     var text by remember { mutableStateOf("") }
     var productRes by remember { mutableStateOf<ProductRes?>(null) }
+    var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val apiUrl = appSettingsViewModel.apiUrl.collectAsState(initial = "")
 
     Column(
         modifier
@@ -277,9 +337,11 @@ fun ProductSearch(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
+                    loading = true
                     scope.launch {
-                        productRes = searchViewModel.searchForProduct(text)
+                        productRes = searchViewModel.searchForProduct(apiUrl.value, text)
                     }
+                    loading = false
                 }
             )
         )
@@ -295,7 +357,9 @@ fun ProductSearch(
         Button(
             onClick = {
                 scope.launch {
-                    productRes = searchViewModel.searchForProduct(text)
+                    loading = true
+                    productRes = searchViewModel.searchForProduct(apiUrl.value, text)
+                    loading = false
                 }
             }
         ) {
@@ -303,6 +367,11 @@ fun ProductSearch(
                 text = "Search"
             )
         }
+        if (loading) {
+            Text(
+                text = "Loading..."
+            )
+        } else {
         productRes?.data?.forEach { product ->
             var thumbnailSize: ProductSize? = null
             var productAisleNumber: String = "No Aisle Found"
@@ -341,6 +410,7 @@ fun ProductSearch(
                 )
             }
         }
+    }
     }
 }
 

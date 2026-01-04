@@ -7,11 +7,12 @@ import android.util.Log
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.betterkroger.models.GroupedShoppingList
+import com.example.betterkroger.models.AppSettings
 import com.example.betterkroger.models.ProductRes
 import com.example.betterkroger.models.ShoppingItem
 import com.example.betterkroger.models.ShoppingList
@@ -23,10 +24,14 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // TODO(map) Consolidate and combine with other instance in MainActivity.kt
 private val fileName = "shopping_list.json"
+val Application.dataStore by preferencesDataStore(name = "settings")
+
 
 private val client = HttpClient(OkHttp) {
     expectSuccess = false
@@ -34,16 +39,21 @@ private val client = HttpClient(OkHttp) {
 
 class SearchViewModel(
 ) : ViewModel() {
-    suspend fun searchForProduct(productTerm: String): ProductRes {
+    suspend fun searchForProduct(url: String, productTerm: String): ProductRes {
         try {
             val encodedParam = Uri.encode(productTerm)
-            print("Using product term $encodedParam")
+            // Debug in emulator
+            // val response: HttpResponse =
+            //     client.get("http://10.0.2.2:8080/search?item=$encodedParam")
+            // Running at home
+            // val response: HttpResponse =
+            //     client.get("http://192.168.1.53:8080/search?item=$encodedParam")
+            // Running with settings
             val response: HttpResponse =
-                client.get("http://10.0.2.2:8080/search?item=$encodedParam")
+                client.get("http://$url:8080/search?item=$encodedParam")
 
             if (response.status.value == 200) {
                 var response_body = response.bodyAsText()
-                print("Response $response_body")
                 val gson = Gson()
                 var productRes = gson.fromJson(response_body, ProductRes::class.java)
                 return productRes
@@ -63,6 +73,7 @@ class ListViewModel(
     private var saveJob: Job? = null
 
     var shoppingItems = mutableStateListOf<ShoppingItem>()
+
     // TODO(map) Implement a custom sorter
     val groupedShoppingItems by derivedStateOf {
         shoppingItems.groupBy { it.aisleDescription }.entries.sortedBy { entry ->
@@ -156,6 +167,21 @@ class ListViewModel(
 
         context.openFileOutput(fileName, Context.MODE_PRIVATE).use {
             it.write(jsonString.toByteArray())
+        }
+    }
+}
+
+class AppSettingsViewModel(
+    application: Application
+) : AndroidViewModel(application) {
+    private val dataStore = application.dataStore
+    val apiUrl: Flow<String> = dataStore.data.map { prefs -> prefs[AppSettings.API_URL] ?: "" }
+
+    fun updateApiUrl(url: String) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[AppSettings.API_URL] = url
+            }
         }
     }
 }

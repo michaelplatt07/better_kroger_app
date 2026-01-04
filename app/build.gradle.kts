@@ -61,6 +61,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:$coilVersion")
     implementation("io.coil-kt.coil3:coil-network-okhttp:$coilVersion")
     implementation("io.coil-kt.coil3:coil-network-ktor2:$coilVersion")
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
     implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

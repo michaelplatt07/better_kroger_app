@@ -197,15 +197,15 @@ fun SettingsView(
             }
         }
         Row {
-        TextField(
-            value = apiUrl,
-            onValueChange = { newUrl ->
-                appSettingsViewModel.updateApiUrl(newUrl)
-            },
-            singleLine = true,
-        )
+            TextField(
+                value = apiUrl,
+                onValueChange = { newUrl ->
+                    appSettingsViewModel.updateApiUrl(newUrl)
+                },
+                singleLine = true,
+            )
+        }
     }
-    } 
 }
 
 
@@ -372,45 +372,45 @@ fun ProductSearch(
                 text = "Loading..."
             )
         } else {
-        productRes?.data?.forEach { product ->
-            var thumbnailSize: ProductSize? = null
-            var productAisleNumber: String = "No Aisle Found"
-            var productAisleDescription: String = "No Aisle Description Found"
-            for (productImage in product.images) {
-                if (productImage.perspective == "front") {
-                    // TODO(map) What should I do to ensure that we always get an image? And if no image is present, 
-                    // should we ensure that there is a default?
-                    if (productImage.sizes.size >= 1) {
-                        thumbnailSize = productImage.sizes.get(0)
+            productRes?.data?.forEach { product ->
+                var thumbnailSize: ProductSize? = null
+                var productAisleNumber: String = "No Aisle Found"
+                var productAisleDescription: String = "No Aisle Description Found"
+                for (productImage in product.images) {
+                    if (productImage.perspective == "front") {
+                        // TODO(map) What should I do to ensure that we always get an image? And if no image is present,
+                        // should we ensure that there is a default?
+                        if (productImage.sizes.size >= 1) {
+                            thumbnailSize = productImage.sizes.get(0)
+                        }
+                        // for (productSize in productImage.sizes) {
+                        //     if (productSize.size == "thumbnail") {
+                        //         thumbnailSize = productSize
+                        //         break
+                        //     }
+                        // }
                     }
-                    // for (productSize in productImage.sizes) {
-                    //     if (productSize.size == "thumbnail") {
-                    //         thumbnailSize = productSize
-                    //         break
-                    //     }
-                    // }
+                }
+                if (product.aisleLocations.size > 0) {
+                    productAisleNumber = product.aisleLocations[0].number
+                    productAisleDescription = product.aisleLocations[0].description
+                }
+                // TODO(map) Figure out how to manage quantity here.
+                if (thumbnailSize != null) {
+                    ItemPreview(
+                        productId = product.productId,
+                        productBrand = product.brand,
+                        productAisleNumber = productAisleNumber,
+                        productAisleDescription = productAisleDescription,
+                        productUrl = thumbnailSize.url,
+                        productDescription = product.description,
+                        productSize = product.items.get(0)?.size,
+                        modifier = modifier,
+                        listViewModel = listViewModel
+                    )
                 }
             }
-            if (product.aisleLocations.size > 0) {
-                productAisleNumber = product.aisleLocations[0].number
-                productAisleDescription = product.aisleLocations[0].description
-            }
-            // TODO(map) Figure out how to manage quantity here.
-            if (thumbnailSize != null) {
-                ItemPreview(
-                    productId = product.productId,
-                    productBrand = product.brand,
-                    productAisleNumber = productAisleNumber,
-                    productAisleDescription = productAisleDescription,
-                    productUrl = thumbnailSize.url,
-                    productDescription = product.description,
-                    productSize = product.items.get(0)?.size,
-                    modifier = modifier,
-                    listViewModel = listViewModel
-                )
-            }
         }
-    }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.betterkroger.viewmodels
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -7,6 +8,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.betterkroger.models.GroupedShoppingList
@@ -55,13 +57,19 @@ class SearchViewModel(
 }
 
 class ListViewModel(
-) : ViewModel() {
+    application: Application
+) : AndroidViewModel(application) {
+    private val context = application.applicationContext
     private var saveJob: Job? = null
 
     var shoppingItems = mutableStateListOf<ShoppingItem>()
     val groupedShoppingItems by derivedStateOf { shoppingItems.groupBy { it.aisleDescription } }
 
-    fun loadShoppingItems(context: Context) {
+    init {
+        loadShoppingItems()
+    }
+
+    fun loadShoppingItems() {
         Log.d("ListViewModel", "Loading shopping items...")
         if (shoppingItems.isNotEmpty()) {
             Log.d("ListViewModel", "Items aready loaded...")
@@ -76,34 +84,67 @@ class ListViewModel(
         shoppingItems.addAll(shoppingList.items)
     }
 
-    fun clearChecked(context: Context) {
-        Log.d("ListViewModel", "Clearing checked items")
-        shoppingItems.removeAll { it.checked == true }
-        scheduleSave(context, shoppingItems)
+    fun addItemToList(shoppingItem: ShoppingItem) {
+        shoppingItems.add(shoppingItem)
+        scheduleSave(shoppingItems)
     }
 
-    fun updateCheckedStatus(context: Context, shoppingListItem: ShoppingItem, checked: Boolean) {
+    fun clearChecked() {
+        Log.d("ListViewModel", "Clearing checked items")
+        shoppingItems.removeAll { it.checked == true }
+        scheduleSave(shoppingItems)
+    }
+
+    fun updateCheckedStatus(shoppingListItem: ShoppingItem, checked: Boolean) {
         val index = shoppingItems.indexOfFirst {
             it.productId == shoppingListItem.productId
         }
         Log.d("ListViewModel", "Index = $index")
         if (index != -1) {
             shoppingItems[index] = shoppingItems[index].copy(checked = checked)
-            scheduleSave(context, shoppingItems)
+            scheduleSave(shoppingItems)
         }
     }
 
-    private fun scheduleSave(context: Context, shoppingItems: MutableList<ShoppingItem>) {
+    fun increaseQuantity(productId: String) {
+        val index = shoppingItems.indexOfFirst {
+            it.productId == productId
+        }
+        if (index != -1) {
+            val oldQuant = shoppingItems[index].quantity
+            shoppingItems[index] = shoppingItems[index].copy(quantity = oldQuant + 1)
+            scheduleSave(shoppingItems)
+        }
+    }
+
+    fun decreaseQuantity(productId: String) {
+        val index = shoppingItems.indexOfFirst {
+            it.productId == productId
+        }
+        Log.d("REMOVE ME", "Index = $index")
+        if (index != -1) {
+            val oldQuant = shoppingItems[index].quantity
+            if (oldQuant - 1 <= 0) {
+                Log.d("REMOVE ME ", "Removing item at index $index")
+                shoppingItems.removeAt(index)
+            } else {
+                shoppingItems[index] = shoppingItems[index].copy(quantity = oldQuant - 1)
+            }
+            scheduleSave(shoppingItems)
+        }
+    }
+
+    private fun scheduleSave(shoppingItems: MutableList<ShoppingItem>) {
         // Cancel previous scheduled save if it exists
         saveJob?.cancel()
 
         saveJob = viewModelScope.launch {
             delay(1000L) // 1-second debounce
-            saveToFile(context, shoppingItems)
+            saveToFile(shoppingItems)
         }
     }
 
-    private fun saveToFile(context: Context, shoppingItems: MutableList<ShoppingItem>) {
+    private fun saveToFile(shoppingItems: MutableList<ShoppingItem>) {
         val gson = Gson()
         val shoppingList = ShoppingList(items = shoppingItems)
         val jsonString = gson.toJson(shoppingList)

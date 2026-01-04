@@ -1,5 +1,6 @@
 package com.example.betterkroger.models
 
+// Search results models
 data class ProductAisleLocation(
     val bayNumber: String,
     val description: String,
@@ -39,6 +40,7 @@ data class ProductRes(
     val error: String?,
 )
 
+// Models for tracking data in the app
 data class ShoppingItem(
     val productId: String,
     val brand: String,

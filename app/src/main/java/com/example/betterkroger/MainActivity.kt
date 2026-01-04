@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,10 +16,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -151,7 +159,7 @@ fun ViewList(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        listViewModel.loadShoppingItems(context)
+        listViewModel.loadShoppingItems()
     }
 
     Column(
@@ -160,7 +168,7 @@ fun ViewList(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
     ) {
-        Button(onClick = { listViewModel.clearChecked(context) }) {
+        Button(onClick = { listViewModel.clearChecked() }) {
             Text(text = "Clear Checked")
         }
         listViewModel.groupedShoppingItems.forEach { (aisleGroup, items) ->
@@ -207,7 +215,6 @@ fun ShoppingListItemView(
                     shoppingItem.checked,
                     onCheckedChange = {
                         listViewModel.updateCheckedStatus(
-                            context,
                             shoppingItem,
                             it
                         )
@@ -216,7 +223,7 @@ fun ShoppingListItemView(
                 Text(
                     modifier = Modifier.padding(8.dp),
                     color = Color(0, 0, 0),
-                    text = "${shoppingItem.quantity} - ${shoppingItem.productDescription}",
+                    text = "Qty. ${shoppingItem.quantity} - ${shoppingItem.productDescription}",
                 )
             }
         }
@@ -226,24 +233,13 @@ fun ShoppingListItemView(
 // TODO(map) Hoist to better place to write file
 @Composable
 fun WriteFileContents(
-    fileName: String,
     shoppingItem: ShoppingItem,
+    listViewModel: ListViewModel
 ) {
     val context = LocalContext.current
 
     Button(onClick = {
-        val gson = Gson()
-
-        val shoppingListContents =
-            context.openFileInput(fileName).bufferedReader().use { it.readText() }
-        var shoppingList: ShoppingList =
-            gson.fromJson(shoppingListContents, ShoppingList::class.java)
-        shoppingList.items.add(shoppingItem)
-        val jsonString = gson.toJson(shoppingList)
-
-        context.openFileOutput(fileName, Context.MODE_PRIVATE).use {
-            it.write(jsonString.toByteArray())
-        }
+        listViewModel.addItemToList(shoppingItem)
         val productName = shoppingItem.productDescription
         // TODO(map) There might be a better way to do this with alert
         Toast.makeText(context, "$productName added.", Toast.LENGTH_SHORT).show()
@@ -257,7 +253,8 @@ fun WriteFileContents(
 fun ProductSearch(
     modifier: Modifier = Modifier,
     onNavigateToHome: () -> Unit,
-    searchViewModel: SearchViewModel = viewModel()
+    searchViewModel: SearchViewModel = viewModel(),
+    listViewModel: ListViewModel = viewModel()
 ) {
     var text by remember { mutableStateOf("") }
     var productRes by remember { mutableStateOf<ProductRes?>(null) }
@@ -329,6 +326,7 @@ fun ProductSearch(
                     productUrl = thumbnailSize.url,
                     productDescription = product.description,
                     modifier = modifier,
+                    listViewModel = listViewModel
                 )
             }
         }
@@ -344,47 +342,129 @@ fun ItemPreview(
     productUrl: String,
     productDescription: String,
     modifier: Modifier = Modifier,
+    listViewModel: ListViewModel,
 ) {
-    var shoppingItem = ShoppingItem(
-        productId = productId,
-        brand = productBrand,
-        productDescription = productDescription,
-        aisleDescription = productAisleDescription,
-        aisleNumber = productAisleNumber,
-    )
-    Card(modifier = modifier) {
-        Row {
-            Column {
-                WriteFileContents(fileName, shoppingItem)
-            }
-            Column {
-                Text(
-                    text = productId,
-                    modifier =
-                        Modifier
-                            .padding(8.dp),
-                )
-                Text(
-                    text = productAisleDescription,
-                    modifier =
-                        Modifier
-                            .padding(8.dp),
-                )
-                AsyncImage(
-                    model = productUrl,
-                    contentDescription = productDescription,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                )
-                Text(
-                    text = productDescription,
-                    modifier =
-                        Modifier
-                            .padding(8.dp),
-                )
+    Log.d("ItemPreview", "Product IDs: ${listViewModel.shoppingItems}")
+    val itemIndex = listViewModel.shoppingItems.indexOfFirst { it.productId == productId }
+    Log.d("ItemPreview", "Product: $productId in cart ${itemIndex != -1}")
+    if (itemIndex != -1) {
+        Card(modifier = modifier) {
+            Row {
+                Column {
+                    Row {
+                        IncreaseQuantityButton(productId, listViewModel = listViewModel)
+                        Text(
+                            text = listViewModel.shoppingItems[itemIndex].quantity.toString(),
+                            modifier =
+                                Modifier
+                                    .padding(8.dp),
+                        )
+                        DecreaseQuantityButton(productId, listViewModel = listViewModel)
+                    }
+                }
+                Column {
+                    Text(
+                        text = productId,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                    Text(
+                        text = productAisleDescription,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                    AsyncImage(
+                        model = productUrl,
+                        contentDescription = productDescription,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                    )
+                    Text(
+                        text = productDescription,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                }
             }
         }
+    } else {
+        var shoppingItem = ShoppingItem(
+            productId = productId,
+            brand = productBrand,
+            productDescription = productDescription,
+            aisleDescription = productAisleDescription,
+            aisleNumber = productAisleNumber,
+        )
+        Card(modifier = modifier) {
+            Row {
+                Column {
+                    WriteFileContents(shoppingItem, listViewModel)
+                }
+                Column {
+                    Text(
+                        text = productId,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                    Text(
+                        text = productAisleDescription,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                    AsyncImage(
+                        model = productUrl,
+                        contentDescription = productDescription,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                    )
+                    Text(
+                        text = productDescription,
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IncreaseQuantityButton(
+    productId: String,
+    listViewModel: ListViewModel
+) {
+    Button(
+        onClick = { listViewModel.increaseQuantity(productId) }
+    ) {
+        Icon(
+            Icons.Default.KeyboardArrowUp,
+            contentDescription = "Increase",
+        )
+    }
+
+}
+
+@Composable
+fun DecreaseQuantityButton(
+    productId: String,
+    listViewModel: ListViewModel
+) {
+    Button(
+        onClick = { listViewModel.decreaseQuantity(productId) }
+    ) {
+        Icon(
+            Icons.Default.KeyboardArrowDown,
+            contentDescription = "Decrease",
+        )
     }
 }

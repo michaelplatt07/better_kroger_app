@@ -223,7 +223,7 @@ fun ShoppingListItemView(
                 Text(
                     modifier = Modifier.padding(8.dp),
                     color = Color(0, 0, 0),
-                    text = "Qty. ${shoppingItem.quantity} - ${shoppingItem.productDescription}",
+                    text = "Qty. ${shoppingItem.quantity} - ${shoppingItem.size} - ${shoppingItem.productDescription}",
                 )
             }
         }
@@ -325,6 +325,7 @@ fun ProductSearch(
                     productAisleDescription = productAisleDescription,
                     productUrl = thumbnailSize.url,
                     productDescription = product.description,
+                    productSize = product.items.get(0)?.size,
                     modifier = modifier,
                     listViewModel = listViewModel
                 )
@@ -341,6 +342,7 @@ fun ItemPreview(
     productAisleDescription: String,
     productUrl: String,
     productDescription: String,
+    productSize: String?,
     modifier: Modifier = Modifier,
     listViewModel: ListViewModel,
 ) {
@@ -374,7 +376,7 @@ fun ItemPreview(
                         modifier =
                             Modifier
                                 .padding(8.dp),
-                    )
+                    ) 
                     AsyncImage(
                         model = productUrl,
                         contentDescription = productDescription,
@@ -382,6 +384,12 @@ fun ItemPreview(
                             Modifier
                                 .fillMaxWidth()
                                 .height(100.dp),
+                    )
+                    Text(
+                        text = productSize ?: "",
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
                     )
                     Text(
                         text = productDescription,
@@ -399,6 +407,7 @@ fun ItemPreview(
             productDescription = productDescription,
             aisleDescription = productAisleDescription,
             aisleNumber = productAisleNumber,
+            size = productSize ?: "",
         )
         Card(modifier = modifier) {
             Row {
@@ -425,6 +434,12 @@ fun ItemPreview(
                             Modifier
                                 .fillMaxWidth()
                                 .height(100.dp),
+                    )
+                    Text(
+                        text = productSize ?: "",
+                        modifier =
+                            Modifier
+                                .padding(8.dp),
                     )
                     Text(
                         text = productDescription,

@@ -25,6 +25,10 @@ data class ProductImage(
     val sizes: List<ProductSize>,
 )
 
+data class ProductInfo(
+    val size: String
+)
+
 data class Product(
     val productId: String,
     val productPageURI: String,
@@ -32,6 +36,7 @@ data class Product(
     val brand: String,
     val categories: List<String>,
     val description: String,
+    val items: List<ProductInfo>,
     val images: List<ProductImage>,
 )
 
@@ -48,6 +53,7 @@ data class ShoppingItem(
     val aisleDescription: String,
     val aisleNumber: String,
     var quantity: Int = 1,
+    var size: String = "",
     var checked: Boolean = false,
 )
 

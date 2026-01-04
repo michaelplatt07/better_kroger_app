@@ -376,7 +376,7 @@ fun ItemPreview(
                         modifier =
                             Modifier
                                 .padding(8.dp),
-                    ) 
+                    )
                     AsyncImage(
                         model = productUrl,
                         contentDescription = productDescription,

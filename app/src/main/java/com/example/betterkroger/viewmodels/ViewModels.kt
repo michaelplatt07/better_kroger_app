@@ -63,7 +63,12 @@ class ListViewModel(
     private var saveJob: Job? = null
 
     var shoppingItems = mutableStateListOf<ShoppingItem>()
-    val groupedShoppingItems by derivedStateOf { shoppingItems.groupBy { it.aisleDescription } }
+    // TODO(map) Implement a custom sorter
+    val groupedShoppingItems by derivedStateOf {
+        shoppingItems.groupBy { it.aisleDescription }.entries.sortedBy { entry ->
+            entry.value.first().aisleNumber
+        }
+    }
 
     init {
         loadShoppingItems()

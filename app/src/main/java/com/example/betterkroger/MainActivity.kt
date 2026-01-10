@@ -338,12 +338,13 @@ fun ProductSearch(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    loading = true
                     scope.launch {
+                        loading = true
                         productRes = searchViewModel.searchForProduct(apiUrl.value, text)
+                        loading = false
                     }
-                    loading = false
-                }))
+                })
+        )
         Button(
             onClick = {
                 onNavigateToHome()
@@ -402,6 +403,7 @@ fun ProductSearch(
                         productUrl = thumbnailSize.url,
                         productDescription = product.description,
                         productSize = product.items.get(0)?.size,
+                        productPrice = product.items.get(0)?.price?.regular,
                         modifier = modifier,
                         listViewModel = listViewModel
                     )
@@ -420,6 +422,7 @@ fun ItemPreview(
     productUrl: String,
     productDescription: String,
     productSize: String?,
+    productPrice: Number?,
     modifier: Modifier = Modifier,
     listViewModel: ListViewModel,
 ) {
@@ -441,7 +444,7 @@ fun ItemPreview(
                 }
                 Column {
                     Text(
-                        text = productId,
+                        text = "$${productPrice}",
                         modifier = Modifier.padding(8.dp),
                     )
                     Text(
@@ -482,7 +485,7 @@ fun ItemPreview(
                 }
                 Column {
                     Text(
-                        text = productId,
+                        text = "$${productPrice}",
                         modifier = Modifier.padding(8.dp),
                     )
                     Text(

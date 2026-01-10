@@ -33,8 +33,13 @@ data class ProductImage(
     val sizes: List<ProductSize>,
 )
 
+data class ProductPrice(
+    val regular: Number
+)
+
 data class ProductInfo(
-    val size: String
+    val size: String,
+    val price: ProductPrice
 )
 
 data class Product(
@@ -61,7 +66,8 @@ data class ShoppingItem(
     val aisleDescription: String,
     val aisleNumber: String,
     var quantity: Int = 1,
-    var size: String = "",
+    // TODO(map) REMOVE ME: After the next iteration of the list is done this should be removed to not allow null
+    var size: String? = "",
     var checked: Boolean = false,
 )
 

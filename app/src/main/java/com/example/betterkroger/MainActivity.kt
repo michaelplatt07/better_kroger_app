@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -101,18 +102,13 @@ fun BetterKrogerApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     NavHost(navController, startDestination = "home") {
         composable("home") {
-            HomePage(
-                modifier = modifier,
-                onNavigateToSearch = {
-                    navController.navigate("search")
-                },
-                onNavigateToViewList = {
-                    navController.navigate("viewList")
-                },
-                onNavigateToSettings = {
-                    navController.navigate("settings")
-                }
-            )
+            HomePage(modifier = modifier, onNavigateToSearch = {
+                navController.navigate("search")
+            }, onNavigateToViewList = {
+                navController.navigate("viewList")
+            }, onNavigateToSettings = {
+                navController.navigate("settings")
+            })
         }
         composable("viewList") {
             ViewList(
@@ -146,11 +142,10 @@ fun HomePage(
     onNavigateToSettings: () -> Unit,
 ) {
     Column(
-        modifier =
-            modifier
-                .padding(10.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .padding(10.dp)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Button(onClick = {
             onNavigateToViewList()
@@ -177,20 +172,25 @@ fun SettingsView(
     onNavigateToHome: () -> Unit,
 ) {
     val apiUrl by appSettingsViewModel.apiUrl.collectAsState(initial = "")
+    var updatedUrl by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(apiUrl) {
+        if (updatedUrl.isEmpty() && apiUrl.isNotEmpty()) {
+            updatedUrl = apiUrl
+        }
+    }
 
     Column(
-        modifier =
-            modifier
-                .padding(10.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .padding(10.dp)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Row {
             Button(
                 onClick = {
                     onNavigateToHome()
-                }
-            ) {
+                }) {
                 Text(
                     text = "Home"
                 )
@@ -198,12 +198,22 @@ fun SettingsView(
         }
         Row {
             TextField(
-                value = apiUrl,
+                value = updatedUrl,
                 onValueChange = { newUrl ->
-                    appSettingsViewModel.updateApiUrl(newUrl)
+                    updatedUrl = newUrl
                 },
                 singleLine = true,
             )
+        }
+        Row {
+            Button(
+                onClick = {
+                    appSettingsViewModel.updateApiUrl(updatedUrl)
+                }) {
+                Text(
+                    text = "Save"
+                )
+            }
         }
     }
 }
@@ -220,10 +230,9 @@ fun ViewList(
     }
 
     Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Button(onClick = { listViewModel.clearChecked() }) {
             Text(text = "Clear Checked")
@@ -242,14 +251,12 @@ fun ShoppingListItemView(
     listViewModel: ListViewModel = viewModel()
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(color = Color(43, 125, 251))
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = Color(43, 125, 251))
     ) {
         Text(
-            text = aisleGrouping,
-            modifier = Modifier.padding(24.dp)
+            text = aisleGrouping, modifier = Modifier.padding(24.dp)
         )
     }
     shoppingItems.forEach { shoppingItem ->
@@ -259,23 +266,18 @@ fun ShoppingListItemView(
                 .then(
                     if (shoppingItem.checked) Modifier.background(
                         color = Color(
-                            120,
-                            117,
-                            117
+                            120, 117, 117
                         )
                     ) else Modifier.background(color = Color(209, 204, 203))
                 )
         ) {
             Row {
                 Checkbox(
-                    shoppingItem.checked,
-                    onCheckedChange = {
+                    shoppingItem.checked, onCheckedChange = {
                         listViewModel.updateCheckedStatus(
-                            shoppingItem,
-                            it
+                            shoppingItem, it
                         )
-                    }
-                )
+                    })
                 Text(
                     modifier = Modifier.padding(8.dp),
                     color = Color(0, 0, 0),
@@ -289,8 +291,7 @@ fun ShoppingListItemView(
 // TODO(map) Hoist to better place to write file
 @Composable
 fun WriteFileContents(
-    shoppingItem: ShoppingItem,
-    listViewModel: ListViewModel
+    shoppingItem: ShoppingItem, listViewModel: ListViewModel
 ) {
     val context = LocalContext.current
 
@@ -342,14 +343,11 @@ fun ProductSearch(
                         productRes = searchViewModel.searchForProduct(apiUrl.value, text)
                     }
                     loading = false
-                }
-            )
-        )
+                }))
         Button(
             onClick = {
                 onNavigateToHome()
-            }
-        ) {
+            }) {
             Text(
                 text = "Home"
             )
@@ -361,8 +359,7 @@ fun ProductSearch(
                     productRes = searchViewModel.searchForProduct(apiUrl.value, text)
                     loading = false
                 }
-            }
-        ) {
+            }) {
             Text(
                 text = "Search"
             )
@@ -437,9 +434,7 @@ fun ItemPreview(
                         IncreaseQuantityButton(productId, listViewModel = listViewModel)
                         Text(
                             text = listViewModel.shoppingItems[itemIndex].quantity.toString(),
-                            modifier =
-                                Modifier
-                                    .padding(8.dp),
+                            modifier = Modifier.padding(8.dp),
                         )
                         DecreaseQuantityButton(productId, listViewModel = listViewModel)
                     }
@@ -447,35 +442,26 @@ fun ItemPreview(
                 Column {
                     Text(
                         text = productId,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     Text(
                         text = productAisleDescription,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     AsyncImage(
                         model = productUrl,
                         contentDescription = productDescription,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(100.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
                     )
                     Text(
                         text = productSize ?: "",
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     Text(
                         text = productDescription,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                 }
             }
@@ -497,35 +483,26 @@ fun ItemPreview(
                 Column {
                     Text(
                         text = productId,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     Text(
                         text = productAisleDescription,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     AsyncImage(
                         model = productUrl,
                         contentDescription = productDescription,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(100.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
                     )
                     Text(
                         text = productSize ?: "",
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     Text(
                         text = productDescription,
-                        modifier =
-                            Modifier
-                                .padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                 }
             }
@@ -535,12 +512,10 @@ fun ItemPreview(
 
 @Composable
 fun IncreaseQuantityButton(
-    productId: String,
-    listViewModel: ListViewModel
+    productId: String, listViewModel: ListViewModel
 ) {
     Button(
-        onClick = { listViewModel.increaseQuantity(productId) }
-    ) {
+        onClick = { listViewModel.increaseQuantity(productId) }) {
         Icon(
             Icons.Default.KeyboardArrowUp,
             contentDescription = "Increase",
@@ -551,12 +526,10 @@ fun IncreaseQuantityButton(
 
 @Composable
 fun DecreaseQuantityButton(
-    productId: String,
-    listViewModel: ListViewModel
+    productId: String, listViewModel: ListViewModel
 ) {
     Button(
-        onClick = { listViewModel.decreaseQuantity(productId) }
-    ) {
+        onClick = { listViewModel.decreaseQuantity(productId) }) {
         Icon(
             Icons.Default.KeyboardArrowDown,
             contentDescription = "Decrease",

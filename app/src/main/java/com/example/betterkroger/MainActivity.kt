@@ -26,8 +26,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,6 +116,9 @@ fun BetterKrogerApp(modifier: Modifier = Modifier) {
         composable("viewList") {
             ViewList(
                 modifier = modifier,
+                onNavigateToHome = {
+                    navController.navigate("home")
+                }
             )
         }
         composable("search") {
@@ -221,7 +227,9 @@ fun SettingsView(
 
 @Composable
 fun ViewList(
-    modifier: Modifier = Modifier, listViewModel: ListViewModel = viewModel()
+    modifier: Modifier = Modifier,
+    onNavigateToHome: () -> Unit,
+    listViewModel: ListViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
@@ -234,8 +242,13 @@ fun ViewList(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        Button(onClick = { listViewModel.clearChecked() }) {
-            Text(text = "Clear Checked")
+        Row() {
+            Button(onClick = { onNavigateToHome() }) {
+                Text(text = "Home")
+            }
+            Button(onClick = { listViewModel.clearChecked() }) {
+                Text(text = "Clear Checked")
+            }
         }
         listViewModel.groupedShoppingItems.forEach { (aisleGroup, items) ->
             ShoppingListItemView(modifier, aisleGrouping = aisleGroup, items)
@@ -244,22 +257,38 @@ fun ViewList(
 }
 
 @Composable
-fun ShoppingListItemView(
+fun ListItemView(
     modifier: Modifier = Modifier,
-    aisleGrouping: String,
-    shoppingItems: List<ShoppingItem>,
+    shoppingItem: ShoppingItem,
     listViewModel: ListViewModel = viewModel()
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(color = Color(43, 125, 251))
+    val swipeState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { it * 0.7f },
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    listViewModel.updateCheckedStatus(
+                        shoppingItem, true
+                    )
+                    false
+                }
+
+                SwipeToDismissBoxValue.EndToStart -> {
+                    listViewModel.clearItem(
+                        shoppingItem.productId
+                    )
+                    false
+                }
+
+                else -> false
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = swipeState,
+        backgroundContent = {},
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(
-            text = aisleGrouping, modifier = Modifier.padding(24.dp)
-        )
-    }
-    shoppingItems.forEach { shoppingItem ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -285,6 +314,26 @@ fun ShoppingListItemView(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun ShoppingListItemView(
+    modifier: Modifier = Modifier,
+    aisleGrouping: String,
+    shoppingItems: List<ShoppingItem>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = Color(43, 125, 251))
+    ) {
+        Text(
+            text = aisleGrouping, modifier = Modifier.padding(24.dp)
+        )
+    }
+    shoppingItems.forEach { shoppingItem ->
+        ListItemView(modifier, shoppingItem)
     }
 }
 
@@ -469,6 +518,7 @@ fun ItemPreview(
                 }
             }
         }
+
     } else {
         var shoppingItem = ShoppingItem(
             productId = productId,

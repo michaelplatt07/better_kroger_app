@@ -105,6 +105,17 @@ class ListViewModel(
         scheduleSave(shoppingItems)
     }
 
+    fun clearItem(productId: String) {
+        val index = shoppingItems.indexOfFirst {
+            it.productId == productId
+        }
+        Log.d("REMOVE ME", "Index = $index")
+        if (index != -1) {
+            shoppingItems.removeAt(index)
+            scheduleSave(shoppingItems)
+        }
+    }
+
     fun clearChecked() {
         Log.d("ListViewModel", "Clearing checked items")
         shoppingItems.removeAll { it.checked == true }

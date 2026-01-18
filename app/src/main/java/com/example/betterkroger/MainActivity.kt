@@ -19,12 +19,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -43,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -367,6 +370,7 @@ fun ProductSearch(
     var productRes by remember { mutableStateOf<ProductRes?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
     val apiUrl = appSettingsViewModel.apiUrl.collectAsState(initial = "")
 
     Column(
@@ -387,12 +391,20 @@ fun ProductSearch(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
+                    keyboardController?.hide()
                     scope.launch {
                         loading = true
                         productRes = searchViewModel.searchForProduct(apiUrl.value, text)
                         loading = false
                     }
-                })
+                }),
+            trailingIcon = {
+                if (text.isNotEmpty()) {
+                    IconButton(onClick = { text = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear text")
+                    }
+                }
+            }
         )
         Button(
             onClick = {
@@ -404,6 +416,7 @@ fun ProductSearch(
         }
         Button(
             onClick = {
+                keyboardController?.hide()
                 scope.launch {
                     loading = true
                     productRes = searchViewModel.searchForProduct(apiUrl.value, text)
